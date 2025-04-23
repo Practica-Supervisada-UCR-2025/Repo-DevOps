@@ -1,0 +1,161 @@
+# .github/workflows/deploy.yml
+name: Deploy App-Reusable workflow
+
+on:
+  workflow_call:
+    inputs:
+      app_path:
+        description: "Path to the app directory"
+        required: false
+        default: "./ucrconnect-dashboard"
+        type: string
+      image_name:
+        description: "Docker image name (e.g., 'frontend-app' or 'backend-user-app')"
+        required: true
+        type: string
+      container_name:
+        description: "Name of the container when deployed"
+        required: true
+        type: string
+      production_server_port:
+        description: "The port this will be assigned to in the production server"
+        required: true
+        type: string
+      program_assigned_port:
+        description: "The port assigned by the respective developer team to this program"
+        required: true
+        type: string
+
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
+      DEPLOYMENT_SERVER_HOST:
+        required: true
+      SERVER_USER:
+        required: true
+      SERVER_SSH_KEY:
+        required: true
+
+      # Backend-user secrets
+      FIREBASE_CREDENTIALS:
+        required: false
+      DB_HOST:
+        required: false
+      DB_USER:
+        required: false
+      DB_PASSWORD:
+        required: false
+      DB_NAME:
+        required: false
+      DB_PORT:
+        required: false
+
+      # Web secrets
+      FIREBASE_ENV_FILE:
+        required: false
+      NEXT_PUBLIC_API_URL:
+        required: false
+
+jobs:
+  build-and-deploy-app:
+    runs-on: ubuntu-latest
+    env:
+      COMMIT_SHA: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create firebase credentials.json
+        id: create-firebase-json
+        if: ${{ inputs.FIREBASE_CREDENTIALS != '' }}
+        uses: jsdaniell/create-json@v1.2.3
+        with:
+          name: "firebase-service-account.json"
+          json: ${{ secrets.FIREBASE_CREDENTIALS }}
+          dir: 'src/'
+
+      - name: Create .env file dynamically
+        run: |
+          touch ${{ inputs.app_path }}/.env
+          # Backend-user
+          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> ${{ inputs.app_path }}/.env
+          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER=${{ secrets.DB_USER }}" >> ${{ inputs.app_path }}/.env
+          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> ${{ inputs.app_path }}/.env
+          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME=${{ secrets.DB_NAME }}" >> ${{ inputs.app_path }}/.env
+          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> ${{ inputs.app_path }}/.env
+
+          # Web
+          [[ -n "${{ secrets.FIREBASE_ENV_FILE }}" ]] && echo "${{ secrets.FIREBASE_ENV_FILE }}" >> ${{ inputs.app_path }}/.env
+          [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
+
+          # Printing .env file keys (not values)
+          echo "Created .env with keys:"
+          cut -d '=' -f 1 ${{ inputs.app_path }}/.env
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.FIREBASE_ENV_FILE }}" > ${{ inputs.app_path }}/.env
+          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
+
+      - name: Docker meta data for image
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ inputs.image_name }}
+          tags: |
+            type=raw,value=${{ env.COMMIT_SHA }}
+            type=ref,event=branch
+            type=raw,value={{date 'DD/MM/YYYY'}}
+          labels: |
+            org.label-schema.vcs-ref=${{ env.COMMIT_SHA }}
+            org.label-schema.vcs-branch=${{ github.head_ref || github.ref_name }}
+            org.label-schema.build-date={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+            org.label-schema.vcs-url=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Print docker metadata fields
+        run: |
+          echo "Docker metadata tags: ${{ steps.meta.outputs.tags }}"
+
+      - name: Docker login
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.app_path }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Clean up unused Docker artifacts on production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker system prune -a -f
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            mkdir -p ~/app
+            cd ~/app/${{ inputs.app_path }}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
+            docker stop ${{ inputs.container_name }} || true
+            docker rm ${{ inputs.container_name }} || true
+            docker run -d --name ${{ inputs.container_name }} -p ${{ production_server_port }}:${{ program_assigned_port }} ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
+            if ! docker ps --filter "name=${{ inputs.container_name }}" --filter "status=running" --format '{{.Names}}' | grep -w ${{ inputs.container_name }} ; then
+              echo "Container is not running, exiting..."
+              exit 1
+            fi
