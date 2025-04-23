@@ -103,7 +103,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ inputs.image_name }}
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}
           tags: |
             type=raw,value=${{ env.COMMIT_SHA }}
             type=ref,event=branch
