@@ -87,12 +87,17 @@ jobs:
           [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> ${{ inputs.app_path }}/.env
 
           # Web
-          [[ -n "${{ secrets.FIREBASE_ENV_FILE }}" ]] && echo "${{ secrets.FIREBASE_ENV_FILE }}" >> ${{ inputs.app_path }}/.env
+          echo "${{ secrets.FIREBASE_ENV_FILE }}" >> ${{ inputs.app_path }}/.env
           [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
 
           # Printing .env file keys (not values)
           echo "Created .env with keys:"
           cut -d '=' -f 1 ${{ inputs.app_path }}/.env
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.FIREBASE_ENV_FILE }}" > ${{ inputs.app_path }}/.env
+          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
 
       - name: Docker meta data for image
         id: meta
