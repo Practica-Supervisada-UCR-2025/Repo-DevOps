@@ -25,10 +25,6 @@ on:
         description: "The port assigned by the respective developer team to this program"
         required: true
         type: string
-      FIREBASE_CREDENTIALS:
-        description: "Credentials of firebase as a JSON, needed to be set here to use if conditionals in the workflows"
-        required: false
-        type: string
 
     secrets:
       DOCKER_USERNAME:
@@ -71,11 +67,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Check for firebase credentials
+        id: firebase-secret-check
+        shell: bash
+        run: |
+          if [ "${{ secrets.FIREBASE_CREDENTIALS }}" != '' ]; then
+            echo "available=true" >> $GITHUB_OUTPUT;
+          else
+            echo "available=false" >> $GITHUB_OUTPUT;
+          fi
+
       - name: Create firebase credentials.json
         id: create-firebase-json
-       
-        # 'inputs' is used instead of 'secrets' because inputs is the only thing that can be used with if statements
-        if: ${{ inputs.FIREBASE_CREDENTIALS != '' }}
+        if: ${{ steps.firebase-secret-check.outputs.available != 'true' }}
         uses: jsdaniell/create-json@v1.2.3
         with:
           name: "firebase-service-account.json"
