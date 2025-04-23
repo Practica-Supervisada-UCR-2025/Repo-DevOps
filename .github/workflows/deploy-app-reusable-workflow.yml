@@ -69,13 +69,15 @@ jobs:
 
       - name: Create firebase credentials.json
         id: create-firebase-json
-        if: secrets.FIREBASE_CREDENTIALS != '' 
+       
+        # 'inputs' is used instead of 'secrets' because inputs is the only thing that can be used with if statements
+        if: ${{ inputs.FIREBASE_CREDENTIALS != '' }}
         uses: jsdaniell/create-json@v1.2.3
         with:
           name: "firebase-service-account.json"
           json: ${{ secrets.FIREBASE_CREDENTIALS }}
           dir: 'src/'
-
+           
       - name: Create .env file dynamically
         run: |
           touch ${{ inputs.app_path }}/.env
