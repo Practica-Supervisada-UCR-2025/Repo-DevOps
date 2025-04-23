@@ -69,7 +69,7 @@ jobs:
 
       - name: Create firebase credentials.json
         id: create-firebase-json
-        if: ${{ secrets.FIREBASE_CREDENTIALS }} != '' 
+        if: secrets.FIREBASE_CREDENTIALS != '' 
         uses: jsdaniell/create-json@v1.2.3
         with:
           name: "firebase-service-account.json"
