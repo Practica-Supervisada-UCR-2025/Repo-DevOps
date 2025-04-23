@@ -43,8 +43,8 @@ on:
         required: true
 
       # Backend-user secrets
-      # FIREBASE_CREDENTIALS: Defined in the inputs of this workflow
-      #   required: false
+      FIREBASE_CREDENTIALS:
+        required: false
       DB_HOST:
         required: false
       DB_USER:
