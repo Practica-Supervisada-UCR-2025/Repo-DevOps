@@ -6,8 +6,7 @@ on:
     inputs:
       app_path:
         description: "Path to the app directory"
-        required: false
-        default: "./ucrconnect-dashboard"
+        required: true
         type: string
       image_name:
         description: "Docker image name (e.g., 'frontend-app' or 'backend-user-app')"
@@ -57,6 +56,10 @@ on:
         required: false
       NEXT_PUBLIC_API_URL:
         required: false
+      
+      # General-use secrets
+      ANY_ENV_FILE:
+        required: false
 
 jobs:
   build-and-deploy-app:
@@ -85,24 +88,31 @@ jobs:
           name: "firebase-service-account.json"
           json: ${{ secrets.FIREBASE_CREDENTIALS }}
           dir: 'src/'
-           
-      - name: Create .env file dynamically
-        run: |
-          touch ${{ inputs.app_path }}/.env
-          # Backend-user
-          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> ${{ inputs.app_path }}/.env
-          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER=${{ secrets.DB_USER }}" >> ${{ inputs.app_path }}/.env
-          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> ${{ inputs.app_path }}/.env
-          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME=${{ secrets.DB_NAME }}" >> ${{ inputs.app_path }}/.env
-          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> ${{ inputs.app_path }}/.env
 
-          # Web
-          echo "${{ secrets.FIREBASE_ENV_FILE }}" >> ${{ inputs.app_path }}/.env
-          [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
-
-          # Printing .env file keys (not values)
-          echo "Created .env with keys:"
-          cut -d '=' -f 1 ${{ inputs.app_path }}/.env
+      - name: Write env file into production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            mkdir -p ~/app
+            mkdir -p ~/app/${{ inputs.app_path }}
+            cd ~/app/${{ inputs.app_path }}
+            touch .env
+            # Backend-user
+            [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+            [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+            [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+            [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+            # Web
+            echo "${{ secrets.FIREBASE_ENV_FILE }}" >> .env
+            [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
+            echo "${{ secrets.ANY_ENV_FILE }}" >> .env
+            # Printing .env file keys (not values)
+            echo "Created .env with keys:"
+            cut -d '=' -f 1 .env
 
       - name: Create .env file
         run: |
@@ -159,12 +169,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            mkdir -p ~/app
             cd ~/app/${{ inputs.app_path }}
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             docker stop ${{ inputs.container_name }} || true
             docker rm ${{ inputs.container_name }} || true
-            docker run -d --name ${{ inputs.container_name }} -p ${{ inputs.production_server_port }}:${{ inputs.program_assigned_port }} ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
+            docker run --env-file .env -d --name ${{ inputs.container_name }} -p ${{ inputs.production_server_port }}:${{ inputs.program_assigned_port }} ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             if ! docker ps --filter "name=${{ inputs.container_name }}" --filter "status=running" --format '{{.Names}}' | grep -w ${{ inputs.container_name }} ; then
               echo "Container is not running, exiting..."
               exit 1
