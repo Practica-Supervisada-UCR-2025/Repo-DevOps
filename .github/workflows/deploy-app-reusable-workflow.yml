@@ -170,7 +170,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd ~/app/${{ inputs.app_path }}
+            cd ~/app/${{ inputs.env_directory }}
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             docker stop ${{ inputs.container_name }} || true
             docker rm ${{ inputs.container_name }} || true
