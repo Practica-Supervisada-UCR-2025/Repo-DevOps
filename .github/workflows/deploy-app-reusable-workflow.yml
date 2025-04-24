@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy App-Reusable workflow
 
 on:
@@ -22,6 +21,10 @@ on:
         type: string
       program_assigned_port:
         description: "The port assigned by the respective developer team to this program"
+        required: true
+        type: string
+      env_directory:
+        description: "Directory the env file for this app will reside in(must be different for each app)"
         required: true
         type: string
 
@@ -97,8 +100,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             mkdir -p ~/app
-            mkdir -p ~/app/${{ inputs.app_path }}
-            cd ~/app/${{ inputs.app_path }}
+            mkdir -p ~/app/${{ inputs.env_directory }}
+            cd ~/app/${{ inputs.env_directory }}
             touch .env
             # Backend-user
             [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
@@ -113,11 +116,6 @@ jobs:
             # Printing .env file keys (not values)
             echo "Created .env with keys:"
             cut -d '=' -f 1 .env
-
-      - name: Create .env file
-        run: |
-          echo "${{ secrets.FIREBASE_ENV_FILE }}" > ${{ inputs.app_path }}/.env
-          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> ${{ inputs.app_path }}/.env
 
       - name: Docker meta data for image
         id: meta
