@@ -102,6 +102,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             mkdir -p ~/app
+            rm -r app/${{ inputs.env_directory }}
             mkdir -p ~/app/${{ inputs.env_directory }}
             cd ~/app/${{ inputs.env_directory }}
             touch .env
