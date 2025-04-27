@@ -85,6 +85,10 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT;
           fi
 
+      - name: Create src directory if it doesn't exist
+        shell: bash
+        run: mkdir -p src
+      
       - name: Create firebase credentials.json
         id: create-firebase-json
         if: ${{ steps.firebase-secret-check.outputs.available != 'true' }}
