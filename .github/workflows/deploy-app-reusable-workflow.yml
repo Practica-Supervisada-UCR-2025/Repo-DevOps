@@ -98,44 +98,38 @@ jobs:
           json: ${{ secrets.FIREBASE_CREDENTIALS }}
           dir: 'src/'
 
-      # Storing the script to create the env file so that we create the env file in the runner and the production server
-      - name: Set up script in env variable
+      - name: Write env file in this runner
         run: |
-          echo "CREATE_ENV_FILE_SCRIPT=$(cat << 'EOF'
-            mkdir -p ~/app/${{ inputs.env_directory }}
-            rm -r ~/app/${{ inputs.env_directory }}
-            mkdir -p ~/app/${{ inputs.env_directory }}
-            cd ~/app/${{ inputs.env_directory }}
-            touch .env
-            # Backend-user
-            [[ -n \"${{ secrets.DB_HOST }}\" ]] && echo \"DB_HOST=${{ secrets.DB_HOST }}\" >> .env
-            [[ -n \"${{ secrets.DB_USER }}\" ]] && echo \"DB_USER=${{ secrets.DB_USER }}\" >> .env
-            [[ -n \"${{ secrets.DB_PASSWORD }}\" ]] && echo \"DB_PASSWORD=${{ secrets.DB_PASSWORD }}\" >> .env
-            [[ -n \"${{ secrets.DB_NAME }}\" ]] && echo \"DB_NAME=${{ secrets.DB_NAME }}\" >> .env
-            [[ -n \"${{ secrets.DB_PORT }}\" ]] && echo \"DB_PORT=${{ secrets.DB_PORT }}\" >> .env
-            [[ -n \"${{ secrets.JWT_SECRET }}\" ]] && echo \"JWT_SECRET=${{ secrets.JWT_SECRET }}\" >> .env
-            # Web
-            echo \"${{ secrets.FIREBASE_ENV_FILE }}\" >> .env
-            [[ -n \"${{ secrets.NEXT_PUBLIC_API_URL }}\" ]] && echo \"NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}\" >> .env
-            echo \"${{ secrets.ANY_ENV_FILE }}\" >> .env
-            # Printing .env file keys (not values)
-            echo \"Created .env with keys:\"
-            cut -d '=' -f 1 .env
-          EOF
-          )" >> $GITHUB_ENV
+          mkdir -p ~/${{ inputs.app_path }}
+          cd ~/${{ inputs.app_path }}
+          touch .env
+          # Backend-user
+          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+          [[ -n "${{ secrets.JWT_SECRET }}" ]] && echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          # Web
+          echo "${{ secrets.FIREBASE_ENV_FILE }}" >> .env
+          [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
+          echo "${{ secrets.ANY_ENV_FILE }}" >> .env
+          # Printing .env file keys (not values)
+          echo "Created .env with keys:"
+          cut -d '=' -f 1 .env
 
-      - name: Create .env file locally on GitHub runner
+      # Set up SSH to run scp and copy the env file to the production server
+      - name: Set up SSH
         run: |
-          eval "$CREATE_ENV_FILE_SCRIPT"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_USER }} >> ~/.ssh/known_hosts
 
-      - name: Write env file into production server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOYMENT_SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            eval "$CREATE_ENV_FILE_SCRIPT"
+      # Copy the env file via to the production server
+      - name: Copy file to server using SCP
+        run: |
+          scp -i ~/.ssh/id_rsa ~/${{ inputs.app_path }}/.env ${{ secrets.SERVER_USER }}@${{ secrets.DEPLOYMENT_SERVER_HOST }}:~
 
       - name: Docker meta data for image
         id: meta
@@ -187,7 +181,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            # Removing and setting the env file
+            mkdir -p ~/app
+            rm -r app/${{ inputs.env_directory }}
+            mkdir -p ~/app/${{ inputs.env_directory }}
             cd ~/app/${{ inputs.env_directory }}
+            cp ~/.env . 
+
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             docker stop ${{ inputs.container_name }} || true
             docker rm ${{ inputs.container_name }} || true
