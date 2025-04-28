@@ -100,8 +100,7 @@ jobs:
 
       - name: Write env file in this runner
         run: |
-          mkdir -p ~/${{ inputs.app_path }}
-          cd ~/${{ inputs.app_path }}
+          cd ${{ inputs.app_path }}
           touch .env
           # Backend-user
           [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
