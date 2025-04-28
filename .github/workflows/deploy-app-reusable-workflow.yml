@@ -128,7 +128,7 @@ jobs:
       # Copy the env file via to the production server
       - name: Copy file to server using SCP
         run: |
-          scp -i ~/.ssh/id_rsa ~/${{ inputs.app_path }}/.env ${{ secrets.SERVER_USER }}@${{ secrets.DEPLOYMENT_SERVER_HOST }}:~
+          scp -i ~/.ssh/id_rsa ${{ inputs.app_path }}/.env ${{ secrets.SERVER_USER }}@${{ secrets.DEPLOYMENT_SERVER_HOST }}:~
 
       - name: Docker meta data for image
         id: meta
