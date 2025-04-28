@@ -156,12 +156,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Debugging dockerfile run
-        run: |
-          ls -alh
-          pwd
-          ls -alh ./ucrconnect-dashboard
-
       - name: Docker build and push
         uses: docker/build-push-action@v6
         with:
