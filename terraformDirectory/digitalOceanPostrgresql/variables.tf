@@ -120,3 +120,22 @@ variable "backend_user_password" {
   sensitive   = true # Mark as sensitive
   # You should ideally not set a default for sensitive values
 }
+
+variable "backend_db_name_development" {
+  type        = string
+  description = "The name of the backend PostgreSQL database for development"
+  default     = "backendDB_development"
+}
+
+variable "backend_user_name_development" {
+  type        = string
+  description = "The username for the backend PostgreSQL user for development"
+  default     = "backend_user_development"
+}
+
+variable "backend_user_password_development" {
+  type        = string
+  description = "The password for the backend PostgreSQL user for development"
+  sensitive   = true # Mark as sensitive
+  # You should ideally not set a default for sensitive values
+}
