@@ -190,7 +190,12 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             docker stop ${{ inputs.container_name }} || true
             docker rm ${{ inputs.container_name }} || true
-            docker run --env-file .env -d --name ${{ inputs.container_name }} -p ${{ inputs.production_server_port }}:${{ inputs.program_assigned_port }} ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
+            docker run --env-file .env \
+              --network production-network \
+              -d \
+              --name ${{ inputs.container_name }} \
+              -p ${{ inputs.production_server_port }}:${{ inputs.program_assigned_port }} \
+              ${{ secrets.DOCKER_USERNAME }}/${{ inputs.image_name }}:${{ env.COMMIT_SHA }}
             if ! docker ps --filter "name=${{ inputs.container_name }}" --filter "status=running" --format '{{.Names}}' | grep -w ${{ inputs.container_name }} ; then
               echo "Container is not running, exiting..."
               exit 1
