@@ -102,21 +102,26 @@ jobs:
         run: |
           cd ${{ inputs.app_path }}
           touch .env
+      
           # Backend-user
-          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST='${{ secrets.DB_HOST }}'" >> .env
-          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER='${{ secrets.DB_USER }}'" >> .env
-          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD='${{ secrets.DB_PASSWORD }}'" >> .env
-          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME='${{ secrets.DB_NAME }}'" >> .env
-          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT='${{ secrets.DB_PORT }}'" >> .env
-          [[ -n "${{ secrets.JWT_SECRET }}" ]] && echo "JWT_SECRET='${{ secrets.JWT_SECRET }}'" >> .env
+          [[ -n "${{ secrets.DB_HOST }}" ]] && printf "DB_HOST=%s\n" "${{ secrets.DB_HOST }}" >> .env
+          [[ -n "${{ secrets.DB_USER }}" ]] && printf "DB_USER=%s\n" "${{ secrets.DB_USER }}" >> .env
+          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && printf "DB_PASSWORD=%s\n" "${{ secrets.DB_PASSWORD }}" >> .env
+          [[ -n "${{ secrets.DB_NAME }}" ]] && printf "DB_NAME=%s\n" "${{ secrets.DB_NAME }}" >> .env
+          [[ -n "${{ secrets.DB_PORT }}" ]] && printf "DB_PORT=%s\n" "${{ secrets.DB_PORT }}" >> .env
+          [[ -n "${{ secrets.JWT_SECRET }}" ]] && printf "JWT_SECRET=%s\n" "${{ secrets.JWT_SECRET }}" >> .env
+      
           # Web
-          echo "${{ secrets.FIREBASE_ENV_FILE }}" >> .env
-          [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
-          echo "'${{ secrets.ANY_ENV_FILE }}'" >> .env
+          printf "%s\n" "${{ secrets.FIREBASE_ENV_FILE }}" >> .env
+          [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && printf "NEXT_PUBLIC_API_URL=%s\n" "${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
+          
+          # Generic placeholder for any env file
+          printf "%s\n" "${{ secrets.ANY_ENV_FILE }}" >> .env
+      
           # Printing .env file keys (not values)
           echo "Created .env with keys:"
           cut -d '=' -f 1 .env
-
+      
       # Set up SSH to run scp and copy the env file to the production server
       - name: Set up SSH
         run: |
