@@ -103,16 +103,16 @@ jobs:
           cd ${{ inputs.app_path }}
           touch .env
           # Backend-user
-          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-          [[ -n "${{ secrets.JWT_SECRET }}" ]] && echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          [[ -n "${{ secrets.DB_HOST }}" ]] && echo "DB_HOST='${{ secrets.DB_HOST }}'" >> .env
+          [[ -n "${{ secrets.DB_USER }}" ]] && echo "DB_USER='${{ secrets.DB_USER }}'" >> .env
+          [[ -n "${{ secrets.DB_PASSWORD }}" ]] && echo "DB_PASSWORD='${{ secrets.DB_PASSWORD }}'" >> .env
+          [[ -n "${{ secrets.DB_NAME }}" ]] && echo "DB_NAME='${{ secrets.DB_NAME }}'" >> .env
+          [[ -n "${{ secrets.DB_PORT }}" ]] && echo "DB_PORT='${{ secrets.DB_PORT }}'" >> .env
+          [[ -n "${{ secrets.JWT_SECRET }}" ]] && echo "JWT_SECRET='${{ secrets.JWT_SECRET }}'" >> .env
           # Web
           echo "${{ secrets.FIREBASE_ENV_FILE }}" >> .env
           [[ -n "${{ secrets.NEXT_PUBLIC_API_URL }}" ]] && echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
-          echo "${{ secrets.ANY_ENV_FILE }}" >> .env
+          echo "'${{ secrets.ANY_ENV_FILE }}'" >> .env
           # Printing .env file keys (not values)
           echo "Created .env with keys:"
           cut -d '=' -f 1 .env
